@@ -7,6 +7,7 @@ import Cookies from 'js-cookie'
 import axios from './axios'
 import md5 from 'md5'
 import Pusher from 'pusher-js'
+import Config from './config/app.config'
 
 function App() {
   const [email, setEmail] = useState('')
@@ -14,26 +15,54 @@ function App() {
   const [receiverId, setReceiverId] = useState('')
   const [message, setMessage] = useState('')
   const [userLogin, setUser] = useState('')
+  const [messages, setMessages] = useState([])
 
+  //subscribe to channel pusher
   useEffect(()=>{
     const pusher = new Pusher("7984c3686be18d5a41e8",{ //app key
       cluster : "ap1",
     })
 
     const channel = pusher.subscribe("messages") //channel must same with backend
-    channel.bind("inserted", data=>{
-      alert(JSON.stringify(data))
+    channel.bind("inserted", newMessage=>{
+      setMessages([...messages, newMessage])
+      alert('you have new message')
     }) 
 
+    return ()=>{
+      channel.unbind_all()
+      channel.unsubscribe()
+    }
+  },[messages])
+
+  useEffect(()=>{
     if(receiverId){
       Cookies.set('receiverId', receiverId)
     }
+    getMessages()
   },[])
+
+  const getMessages=()=>{
+    axios({
+      method : 'GET',
+      url : Config.host + "/chats",
+      headers : {
+        Authorization : 'Bearer '+Cookies.get('accessToken')
+      },
+    })
+    .then(res=>{
+      setMessages(res.data.records)
+      console.log(res)
+    })
+    .catch(err=>{
+      console.log(err)
+    })
+  }
 
   const signIn=()=>{
     axios({
       method : 'POST',
-      url : 'http://localhost:5000/auth',
+      url : Config.host +'/auth',
       data : {
         email : email,
         password : md5(password)
@@ -53,7 +82,7 @@ function App() {
   const sendMessage=()=>{
     axios({
       method : 'POST',
-      url : 'http://localhost:5000/chat',
+      url : Config.host +'/chat',
       headers : {
         Authorization : 'Bearer '+Cookies.get('accessToken')
       },
@@ -113,7 +142,12 @@ function App() {
             </div>
         </Grid>
         <Grid item xs={12} md={8}>
-
+          {messages.map((obj,key)=>
+            <div style={{border : '1px solid #dddd', padding : 10, margin : 10}}>
+              <p><strong>sender : {obj.senderId}</strong></p>
+              <p>message : {obj.message}</p>
+            </div>
+          )}
         </Grid>
       </Grid>
     </div>
