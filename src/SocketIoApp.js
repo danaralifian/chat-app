@@ -18,7 +18,7 @@ function App() {
   const [userLogin, setUser] = useState('')
   const [messages, setMessages] = useState([])
   const [isSocketConnect, setIsConnect] = useState(false)
-  let socket
+  const socket = io(Config.host)
   const options = {
     transports: ['websocket'],
   }
@@ -28,19 +28,21 @@ function App() {
   },[messages])
 
   useEffect(()=>{
+    if(!isSocketConnect){
+      socket.on('connect', (data) => {
+          setIsConnect(true)
+      })
+    }
+    return () => socket.disconnect()
+  },[])
+
+  useEffect(()=>{
     if(receiverId){
       Cookies.set('receiverId', receiverId)
     }
-    console.log('render')
-    socket = io(Config.host)
-    if(!isSocketConnect){
-        socket.on('connect', (data) => {
-            alert('connected')
-            setIsConnect(true)
-        })
-    }
+
     socket.on('message', (data) => {
-        console.log(data)
+      console.log('new message', data)
     })
   })
 
@@ -82,6 +84,15 @@ function App() {
 
   const sendSocket=()=>{
     socket.emit('sendMessage', message)
+  }
+
+  const joinRoom=()=>{
+    const data = {roomName : 'cra001'}
+    socket.emit('joinRoom', data)
+  }
+
+  const leaveRoom=()=>{
+    socket.emit('leave','')
   }
 
   const sendMessage=()=>{
@@ -143,6 +154,12 @@ function App() {
             <Button variant="contained" color='primary' fullWidth onClick={sendMessage}>Send Pusher</Button>
             <br/><br/><hr/><br/>
             <Button variant="contained" color='primary' fullWidth onClick={sendSocket}>send socket io</Button>
+            <Button variant="contained" color='primary' onClick={joinRoom}>
+              Join Room
+            </Button>
+            <Button variant="contained" color='primary' onClick={leaveRoom}>
+              Leave Room
+            </Button>
             <div  style={{width : '100%'}}>
             {Cookies.get('email')}
             </div>
